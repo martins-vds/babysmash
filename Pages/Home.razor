@@ -1,7 +1,187 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
 
-<PageTitle>Home</PageTitle>
+<PageTitle>BabySmash!</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="baby-smash-container" 
+     @onkeydown="OnKeyDown" 
+     @onclick="OnClick" 
+     @onmousemove="OnMouseMove"
+     tabindex="0">
+    
+    <div class="info-panel @(showInfo ? "visible" : "hidden")">
+        <h3>🍼 BabySmash! 🍼</h3>
+        <p>by Scott Hanselman with community contributions!</p>
+        <p><strong>Click anywhere</strong> or <strong>press any key</strong> to play!</p>
+        <p><strong>Ctrl+Shift+Alt+O</strong> for options, <strong>Alt+F4</strong> to close</p>
+    </div>
 
-Welcome to your new app.
+    <!-- Shapes container -->
+    <div class="shapes-container">
+        @foreach (var shape in shapes)
+        {
+            <div class="shape @shape.Type" 
+                 style="left: @(shape.X)px; top: @(shape.Y)px; 
+                        background-color: @shape.Color; 
+                        animation-duration: @(shape.AnimationDuration)s;">
+                @if (shape.HasFace)
+                {
+                    <div class="face">
+                        <div class="eye"></div>
+                        <div class="eye"></div>
+                        <div class="mouth"></div>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(shape.Letter))
+                {
+                    <span class="letter">@shape.Letter</span>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Audio elements for sound effects -->
+    <audio id="audioPlayer" style="display: none;"></audio>
+</div>
+
+@code {
+    private List<Shape> shapes = new();
+    private bool showInfo = true;
+    private Random random = new();
+    private string[] colors = { "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500", "#800080" };
+    private string[] soundFiles = { "babylaugh.wav", "giggle.wav", "babygigl2.wav", "laughingmice.wav", "ccgiggle.wav", "scooby2.wav" };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("babySmash.initialize");
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        showInfo = false;
+        
+        // Generate a letter shape for alphabet keys
+        if (e.Key.Length == 1 && char.IsLetter(e.Key[0]))
+        {
+            await CreateLetterShape(e.Key.ToUpper());
+        }
+        else
+        {
+            await CreateRandomShape();
+        }
+        
+        await PlayRandomSound();
+        StateHasChanged();
+    }
+
+    private async Task OnClick(MouseEventArgs e)
+    {
+        showInfo = false;
+        await CreateShapeAtPosition((int)e.ClientX, (int)e.ClientY);
+        await PlayRandomSound();
+        StateHasChanged();
+    }
+
+    private async Task OnMouseMove(MouseEventArgs e)
+    {
+        // Could add cursor effects here
+    }
+
+    private async Task CreateRandomShape()
+    {
+        var shapeTypes = new[] { "circle", "square", "triangle", "heart", "star" };
+        var type = shapeTypes[random.Next(shapeTypes.Length)];
+        
+        var shape = new Shape
+        {
+            Type = type,
+            X = random.Next(50, 800),
+            Y = random.Next(50, 600),
+            Color = colors[random.Next(colors.Length)],
+            HasFace = random.Next(100) < 30, // 30% chance of having a face
+            AnimationDuration = 2 + random.NextDouble() * 3
+        };
+
+        shapes.Add(shape);
+        
+        // Remove old shapes to prevent memory issues
+        if (shapes.Count > 20)
+        {
+            shapes.RemoveAt(0);
+        }
+    }
+
+    private async Task CreateLetterShape(string letter)
+    {
+        var shape = new Shape
+        {
+            Type = "letter",
+            Letter = letter,
+            X = random.Next(50, 800),
+            Y = random.Next(50, 600),
+            Color = colors[random.Next(colors.Length)],
+            HasFace = false,
+            AnimationDuration = 2 + random.NextDouble() * 3
+        };
+
+        shapes.Add(shape);
+        
+        if (shapes.Count > 20)
+        {
+            shapes.RemoveAt(0);
+        }
+    }
+
+    private async Task CreateShapeAtPosition(int x, int y)
+    {
+        var shapeTypes = new[] { "circle", "square", "triangle", "heart", "star" };
+        var type = shapeTypes[random.Next(shapeTypes.Length)];
+        
+        var shape = new Shape
+        {
+            Type = type,
+            X = x - 50, // Center the shape on click
+            Y = y - 50,
+            Color = colors[random.Next(colors.Length)],
+            HasFace = random.Next(100) < 50, // 50% chance of having a face
+            AnimationDuration = 2 + random.NextDouble() * 3
+        };
+
+        shapes.Add(shape);
+        
+        if (shapes.Count > 20)
+        {
+            shapes.RemoveAt(0);
+        }
+    }
+
+    private async Task PlayRandomSound()
+    {
+        try
+        {
+            var soundFile = soundFiles[random.Next(soundFiles.Length)];
+            await JSRuntime.InvokeVoidAsync("babySmash.playSound", soundFile);
+        }
+        catch
+        {
+            // Ignore audio errors
+        }
+    }
+
+    public class Shape
+    {
+        public string Type { get; set; } = "";
+        public int X { get; set; }
+        public int Y { get; set; }
+        public string Color { get; set; } = "";
+        public bool HasFace { get; set; }
+        public string Letter { get; set; } = "";
+        public double AnimationDuration { get; set; } = 2.0;
+    }
+}
