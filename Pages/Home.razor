@@ -1,6 +1,7 @@
 ﻿@page "/"
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
+@using BabySmash.Components
 @inject IJSRuntime JSRuntime
 
 <PageTitle>BabySmash!</PageTitle>
@@ -25,8 +26,9 @@
             <div class="shape @shape.Type" 
                  style="left: @(shape.X)px; top: @(shape.Y)px; 
                         background-color: @shape.Color; 
-                        animation-duration: @(shape.AnimationDuration)s;">
-                @if (shape.HasFace)
+                        animation-duration: @(shape.AnimationDuration)s;
+                        border-bottom-color: @(shape.Type == "triangle" || shape.Type == "star" ? shape.Color : "");">
+                @if (shape.HasFace && options.FacesEnabled)
                 {
                     <div class="face">
                         <div class="eye"></div>
@@ -42,6 +44,11 @@
         }
     </div>
 
+    <!-- Options Dialog -->
+    <OptionsDialog IsVisible="showOptions" 
+                   IsVisibleChanged="OnOptionsVisibilityChanged"
+                   OnSettingsChanged="OnSettingsChanged" />
+
     <!-- Audio elements for sound effects -->
     <audio id="audioPlayer" style="display: none;"></audio>
 </div>
@@ -49,9 +56,11 @@
 @code {
     private List<Shape> shapes = new();
     private bool showInfo = true;
+    private bool showOptions = false;
     private Random random = new();
     private string[] colors = { "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500", "#800080" };
     private string[] soundFiles = { "babylaugh.wav", "giggle.wav", "babygigl2.wav", "laughingmice.wav", "ccgiggle.wav", "scooby2.wav" };
+    private OptionsDialog.OptionsSettings options = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -64,19 +73,34 @@
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
+        // Check for options shortcut: Ctrl+Shift+Alt+O
+        if (e.CtrlKey && e.ShiftKey && e.AltKey && e.Key.ToUpper() == "O")
+        {
+            showOptions = !showOptions;
+            StateHasChanged();
+            return;
+        }
+        
         showInfo = false;
         
         // Generate a letter shape for alphabet keys
         if (e.Key.Length == 1 && char.IsLetter(e.Key[0]))
         {
             await CreateLetterShape(e.Key.ToUpper());
+            if (options.SoundEnabled)
+            {
+                await JSRuntime.InvokeVoidAsync("babySmash.speakText", e.Key.ToUpper());
+            }
         }
         else
         {
             await CreateRandomShape();
         }
         
-        await PlayRandomSound();
+        if (options.SoundEnabled)
+        {
+            await PlayRandomSound();
+        }
         StateHasChanged();
     }
 
@@ -84,13 +108,28 @@
     {
         showInfo = false;
         await CreateShapeAtPosition((int)e.ClientX, (int)e.ClientY);
-        await PlayRandomSound();
+        if (options.SoundEnabled)
+        {
+            await PlayRandomSound();
+        }
         StateHasChanged();
     }
 
     private async Task OnMouseMove(MouseEventArgs e)
     {
         // Could add cursor effects here
+    }
+
+    private async Task OnOptionsVisibilityChanged(bool isVisible)
+    {
+        showOptions = isVisible;
+        StateHasChanged();
+    }
+
+    private async Task OnSettingsChanged(OptionsDialog.OptionsSettings settings)
+    {
+        options = settings;
+        StateHasChanged();
     }
 
     private async Task CreateRandomShape()
@@ -105,7 +144,7 @@
             Y = random.Next(50, 600),
             Color = colors[random.Next(colors.Length)],
             HasFace = random.Next(100) < 30, // 30% chance of having a face
-            AnimationDuration = 2 + random.NextDouble() * 3
+            AnimationDuration = (2 + random.NextDouble() * 3) / options.AnimationSpeed
         };
 
         shapes.Add(shape);
@@ -127,7 +166,7 @@
             Y = random.Next(50, 600),
             Color = colors[random.Next(colors.Length)],
             HasFace = false,
-            AnimationDuration = 2 + random.NextDouble() * 3
+            AnimationDuration = (2 + random.NextDouble() * 3) / options.AnimationSpeed
         };
 
         shapes.Add(shape);
@@ -150,7 +189,7 @@
             Y = y - 50,
             Color = colors[random.Next(colors.Length)],
             HasFace = random.Next(100) < 50, // 50% chance of having a face
-            AnimationDuration = 2 + random.NextDouble() * 3
+            AnimationDuration = (2 + random.NextDouble() * 3) / options.AnimationSpeed
         };
 
         shapes.Add(shape);

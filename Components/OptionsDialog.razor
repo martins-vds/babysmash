@@ -1,0 +1,252 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+<div class="options-dialog @(isVisible ? "visible" : "hidden")">
+    <div class="options-content">
+        <h2>🍼 BabySmash Options 🍼</h2>
+        
+        <div class="option-group">
+            <label>
+                <input type="checkbox" @bind="soundEnabled" @bind:after="OnSoundEnabledChanged" />
+                Enable Sound Effects
+            </label>
+        </div>
+        
+        <div class="option-group">
+            <label>
+                <input type="checkbox" @bind="facesEnabled" @bind:after="OnFacesEnabledChanged" />
+                Show Faces on Shapes
+            </label>
+        </div>
+        
+        <div class="option-group">
+            <label>
+                Animation Speed:
+                <input type="range" min="0.5" max="3" step="0.1" @bind="animationSpeed" @bind:after="OnAnimationSpeedChanged" />
+                @animationSpeed.ToString("F1")x
+            </label>
+        </div>
+        
+        <div class="option-group">
+            <label>
+                Language:
+                <select @bind="selectedLanguage" @bind:after="OnLanguageChanged">
+                    <option value="en-EN">English</option>
+                    <option value="ru-RU">Русский</option>
+                </select>
+            </label>
+        </div>
+        
+        <div class="option-buttons">
+            <button class="btn-primary" @onclick="CloseOptions">Close</button>
+            <button class="btn-secondary" @onclick="ResetDefaults">Reset to Defaults</button>
+        </div>
+        
+        <div class="info">
+            <p><strong>Controls:</strong></p>
+            <ul>
+                <li>Press any letter key to create letter shapes</li>
+                <li>Press any other key to create random shapes</li>
+                <li>Click anywhere to create shapes at that location</li>
+                <li>Press <strong>Ctrl+Shift+Alt+O</strong> to open options</li>
+                <li>Press <strong>Alt+F4</strong> to close the application</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<style>
+.options-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    transition: opacity 0.3s ease;
+}
+
+.options-dialog.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.options-dialog.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.options-content {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.options-content h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.option-group {
+    margin-bottom: 20px;
+}
+
+.option-group label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+    color: #333;
+}
+
+.option-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+}
+
+.option-group input[type="range"] {
+    flex: 1;
+    margin: 0 10px;
+}
+
+.option-group select {
+    padding: 5px 10px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+.option-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: #4ecdc4;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #45b7d1;
+}
+
+.btn-secondary {
+    background: #ddd;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #ccc;
+}
+
+.info {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.info ul {
+    margin: 10px 0 0 20px;
+}
+
+.info li {
+    margin-bottom: 5px;
+}
+</style>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter] public EventCallback<OptionsSettings> OnSettingsChanged { get; set; }
+
+    private bool isVisible;
+    private bool soundEnabled = true;
+    private bool facesEnabled = true;
+    private double animationSpeed = 1.0;
+    private string selectedLanguage = "en-EN";
+
+    protected override void OnParametersSet()
+    {
+        isVisible = IsVisible;
+    }
+
+    private async Task OnSoundEnabledChanged()
+    {
+        await NotifySettingsChanged();
+    }
+
+    private async Task OnFacesEnabledChanged()
+    {
+        await NotifySettingsChanged();
+    }
+
+    private async Task OnAnimationSpeedChanged()
+    {
+        await NotifySettingsChanged();
+    }
+
+    private async Task OnLanguageChanged()
+    {
+        await NotifySettingsChanged();
+    }
+
+    private async Task CloseOptions()
+    {
+        isVisible = false;
+        await IsVisibleChanged.InvokeAsync(isVisible);
+    }
+
+    private async Task ResetDefaults()
+    {
+        soundEnabled = true;
+        facesEnabled = true;
+        animationSpeed = 1.0;
+        selectedLanguage = "en-EN";
+        await NotifySettingsChanged();
+        StateHasChanged();
+    }
+
+    private async Task NotifySettingsChanged()
+    {
+        var settings = new OptionsSettings
+        {
+            SoundEnabled = soundEnabled,
+            FacesEnabled = facesEnabled,
+            AnimationSpeed = animationSpeed,
+            Language = selectedLanguage
+        };
+        await OnSettingsChanged.InvokeAsync(settings);
+    }
+
+    public class OptionsSettings
+    {
+        public bool SoundEnabled { get; set; } = true;
+        public bool FacesEnabled { get; set; } = true;
+        public double AnimationSpeed { get; set; } = 1.0;
+        public string Language { get; set; } = "en-EN";
+    }
+}
