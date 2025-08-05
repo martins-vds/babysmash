@@ -1,0 +1,16 @@
+﻿<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <div class="baby-smash-container">
+                <div class="info-panel visible">
+                    <h3>🍼 Page Not Found 🍼</h3>
+                    <p>This page doesn't exist, but you can still play!</p>
+                </div>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>
